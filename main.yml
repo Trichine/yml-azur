@@ -1,0 +1,64 @@
+- name: Create Azure VM
+  hosts: localhost
+  connection: local
+  tasks:
+  - name: Create resource group
+    azure_rm_resourcegroup:
+      name: olivier
+      location: eastus
+  - name: Create virtual network
+    azure_rm_virtualnetwork:
+      resource_group: olivier
+      name: myVnet
+      address_prefixes: "10.0.0.0/16"
+  - name: Add subnet
+    azure_rm_subnet:
+      resource_group: olivier
+      name: mySubnet
+      address_prefix: "10.0.1.0/24"
+      virtual_network: myVnet
+  - name: Create public IP address
+    azure_rm_publicipaddress:
+      resource_group: olivier
+      allocation_method: Static
+      name: myPublicIP
+    register: output_ip_address
+  - name: Public IP of VM
+    debug:
+      msg: "The public IP is {{ output_ip_address.state.ip_address }}."
+  - name: Create Network Security Group that allows SSH
+    azure_rm_securitygroup:
+      resource_group: olivier
+      name: myNetworkSecurityGroup
+      rules:
+        - name: SSH
+          protocol: Tcp
+          destination_port_range: 22
+          access: Allow
+          priority: 1001
+          direction: Inbound
+  - name: Create virtual network interface card
+    azure_rm_networkinterface:
+      resource_group: olivier
+      name: myNIC
+      virtual_network: myVnet
+      subnet: mySubnet
+      public_ip_name: myPublicIP
+      security_group: myNetworkSecurityGroup
+  - name: Create VM
+    azure_rm_virtualmachine:
+      resource_group: olivier
+      name: myVM
+      vm_size: Standard_DS1_v2
+      admin_username: azureuser
+      ssh_password_enabled: false
+      ssh_public_keys:
+        - path: /home/azureuser/.ssh/authorized_keys
+          key_data: ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQCvMYTrmfaxm5nLPvoyxube9VUIgZJwUNC2nUySjZTpQ9yYTqJg9kNzRFhUSX9i1NYDMP7UuASbFh0uNKZvvjS+tHuX7XhQWGizST9weHDTFiTGFNzenF9cs8Ib7N4bK2/REF3sZZw14zYgPDXYs14Z359+ufxRAkPGAFXQd3nFedmlf0wh8BoIArUL/3DFOElRc/3tQOPfnb6sq2ElN127yOknzhwKx8J546pXe5YF6SpYtWQFMxHiSufWQtNdyXUeCe4FQaolMsY2e+hR48nHqUD42Dn2grYktfJBP90Lorgs9djSvDzKMMkcmjd1//EEI9dWArdkgYTOJvpYsDlbqoDbRONIiR+TFCIhIY8udXRRee03Fb2fy1MJt6ASu+UDD63fIIho7oWMgt0cIFvxqrQ5tOYzWSDBjNN7rSBORBtIJ9utEHPmdRc4wxRhy5IYnX0n113/1nIxF+VK9nSg0lqFcwKTFaRyGeIYcVDxxnjJJTEKh+qSH+KJtxSwb34TwnfrvxIURPmiAqkZ04nay+eFvCvgNFVF55MApDNfgbYwtDzcQaBrVl89gsyPhYb79Zip8Cd0yfsoX/bSRkisD17+jVXSNHmtXZ1+T8h6Msi4lgnd20ZuonyH38tr/m71w9+mZ7DpzQsUqnOGxYaSLz7UQokeJg0w0QY9KTuvFQ== aboubakeur.trichine@Digital-Grenoble.local@javascript-15
+
+      network_interfaces: myNIC
+      image:
+        offer: CentOS
+        publisher: OpenLogic
+        sku: '7.5'
+        version: latest
